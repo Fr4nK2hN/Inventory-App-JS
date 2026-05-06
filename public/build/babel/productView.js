@@ -88,22 +88,64 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
   }, {
     key: "showListedProducts",
     value: function showListedProducts(productList) {
-      var output = ' ';
-      productList.forEach(function (product) {
-        output += "   \n                <li class=\"flex items-center justify-between  w-full py-2 bg-blue-400/ text-white font-medium ss:min-w-[500px] ss:overflow-x-auto \">\n                    <p class=\"  basis-[16%] ww:text-base xx:text-[15px] dd:text-[14px] ss:text-[13px] \">".concat(product.title, "</p>\n                    <p class=\"  basis-[16%] ww:text-base xx:text-[15px] dd:text-[14px] ss:text-[13px] \">").concat(product.location, "</p>\n                    <p class=\"  basis-[16%] ww:text-base xx:text-[15px] dd:text-[14px] ss:text-[13px] \">").concat(product.category, "</p>\n                    <p class=\"  basis-[16%] font-vazir ww:text-base xx:text-[15px] dd:text-[14px] ss:text-[13px] \">").concat(product.persianDate, "</p>\n                    <p class=\"  border-2 border-slate-400 p-1 rounded-2xl ww:text-base xx:text-[15px] dd:text-[14px] ss:text-[13px] \">").concat(product.quantity, "</p>\n                    <svg id=\"").concat(product.id, "\" class=\" pdt-dlt-btn stroke-red-500 dd:h-6 dd:w-6 ss:h-5 ss:w-5 cursor-pointer\" xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\"\n                        viewBox=\"0 0 24 24\" stroke-width=\"1.5\" stroke=\"currentColor\" class=\"size-6\">\n                        <path stroke-linecap=\"round\" stroke-linejoin=\"round\"\n                            d=\"m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0\" />\n                    </svg>\n                </li>\n            ");
-      });
-      this.productCenter.innerHTML = output;
+      var _this$productCenter,
+        _this2 = this;
+      (_this$productCenter = this.productCenter).replaceChildren.apply(_this$productCenter, _toConsumableArray(productList.map(function (product) {
+        return _this2.createProductListItem(product);
+      })));
       this.productsAction();
+    }
+  }, {
+    key: "createProductListItem",
+    value: function createProductListItem(product) {
+      var listItem = document.createElement("li");
+      listItem.className = "flex items-center justify-between  w-full py-2 bg-blue-400/ text-white font-medium ss:min-w-[500px] ss:overflow-x-auto ";
+      listItem.append(this.createTextColumn(product.title), this.createTextColumn(product.location), this.createTextColumn(product.category), this.createTextColumn(product.persianDate, "font-vazir"), this.createQuantityColumn(product.quantity), this.createDeleteIcon(product.id));
+      return listItem;
+    }
+  }, {
+    key: "createTextColumn",
+    value: function createTextColumn(value) {
+      var extraClass = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "";
+      var column = document.createElement("p");
+      column.className = "basis-[16%] ww:text-base xx:text-[15px] dd:text-[14px] ss:text-[13px] ".concat(extraClass).trim();
+      column.textContent = value !== null && value !== void 0 ? value : "";
+      return column;
+    }
+  }, {
+    key: "createQuantityColumn",
+    value: function createQuantityColumn(value) {
+      var column = document.createElement("p");
+      column.className = "border-2 border-slate-400 p-1 rounded-2xl ww:text-base xx:text-[15px] dd:text-[14px] ss:text-[13px] ";
+      column.textContent = value !== null && value !== void 0 ? value : "";
+      return column;
+    }
+  }, {
+    key: "createDeleteIcon",
+    value: function createDeleteIcon(productId) {
+      var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.id = String(productId);
+      svg.classList.add("pdt-dlt-btn", "stroke-red-500", "dd:h-6", "dd:w-6", "ss:h-5", "ss:w-5", "cursor-pointer");
+      svg.setAttribute("fill", "none");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("stroke-width", "1.5");
+      svg.setAttribute("stroke", "currentColor");
+      var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+      path.setAttribute("d", "m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0");
+      svg.append(path);
+      return svg;
     }
   }, {
     key: "productsAction",
     value: function productsAction() {
-      var _this2 = this;
+      var _this3 = this;
       // delete product event listener
       var removeBtns = _toConsumableArray(document.querySelectorAll(".pdt-dlt-btn"));
       removeBtns.forEach(function (btn) {
         btn.addEventListener("click", function (e) {
-          _this2.deleteProduct(e);
+          _this3.deleteProduct(e);
         });
       });
     }
