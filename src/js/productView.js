@@ -14,8 +14,7 @@ export default class ProductView {
         this.toggleBtns = document.querySelectorAll(".toggleBtn")
         this.searchInput = document.querySelector("#searchInput")
         this.sortSelect = document.querySelector("#sort")
-        this.searchTerm = ""
-        this.currentSortType = this.sortSelect.value
+
         // event listeners
         this.pdtAddNew.addEventListener("click", () => {
             this.addNewProduct()
@@ -118,6 +117,7 @@ export default class ProductView {
         }
     }
 
+    // ==================== Member B: 产品校验核心功能 ====================
     addNewProduct() {
         if (this.pdtTitle.value.trim().length >= 2) {
             const newProduct = this.buildProduct()
@@ -129,11 +129,51 @@ export default class ProductView {
             // instant update html product list from storage
             this.refreshProductsList()
 
-        } else {
-            alert("your entered title for category must be at least 2 characters!!!")
-        }
+        // 创建新产品（quantity 作为数字保存）
+        const newProduct = {
+            id: Date.now(),
+            title: title,
+            quantity: quantity,                    // ← 改为数字
+            location: location,
+            category: category,
+            persianDate: new Date().toLocaleDateString("fa-IR")
+        };
 
+        // 保存到 localStorage
+        const pdtList = Storage.getProducts;
+        pdtList.push(newProduct);
+        Storage.saveProducts(pdtList);
+
+        // 成功反馈 + 重置表单
+        alert("Product added successfully!");
+        this.resetForm();
+
+        // 刷新列表
+        this.syncViewStateFromControls()
+        this.refreshProductsList()
     }
+
+    toggleProductQty(e) {
+        switch (e.currentTarget.id) {
+            case "incQty":
+                this.pdtQty.innerText = Number(this.pdtQty.innerText) + 1;
+                break;
+            case "decQty":
+                let current = Number(this.pdtQty.innerText);
+                if (current > 0) {
+                    this.pdtQty.innerText = current - 1;
+                }
+                break;
+        }
+    }
+
+    resetForm() {
+        this.pdtTitle.value = '';
+        this.pdtQty.innerText = '0';
+        this.pdtLocation.value = "none";
+        this.ctgSelect.value = "none";
+    }
+    // ==================== 原有功能保持不变 ====================
 
     showListedProducts(productList) {
         this.productCenter.replaceChildren(...productList.map((product) => this.createProductListItem(product)))
@@ -189,9 +229,8 @@ export default class ProductView {
     }
 
     productsAction() {
-        // delete product event listener
-        const removeButtons = [...document.querySelectorAll(".pdt-dlt-btn")]
-        removeButtons.forEach((btn) => {
+        const removeBtns = [...document.querySelectorAll(".pdt-dlt-btn")]
+        removeBtns.forEach((btn) => {
             btn.addEventListener("click", (e) => {
                 this.deleteProduct(e)
             })
@@ -222,8 +261,19 @@ export default class ProductView {
     }
 
     sortBySelect(sortType) {
-        this.currentSortType = sortType
-        this.refreshProductsList()
+        let saveProducts = Storage.getProducts
+        let sortedProducts = [];
+        if (sortType === "newest") {
+            sortedProducts = saveProducts.slice().sort((a, b) => b.id - a.id);
+        } else if (sortType === "oldest") {
+            sortedProducts = saveProducts.slice().sort((a, b) => a.id - a.id);
+        } else if (sortType === "A-Z") {
+            sortedProducts = saveProducts.slice().sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()))
+        } else if (sortType === "Z-A") {
+            sortedProducts = saveProducts.slice().sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase())).reverse()
+        } else {
+            sortedProducts = saveProducts.slice();
+        }
+        this.showListedProducts(sortedProducts);
     }
-
 }
