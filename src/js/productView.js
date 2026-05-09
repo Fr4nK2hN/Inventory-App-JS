@@ -199,7 +199,7 @@ export default class ProductView {
         } else if (sortType === "Z-A") {
             sortedProducts = saveProducts.slice().sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase())).reverse()
         } else {
-            sortedProducts = saveProducts.slice();# 
+            sortedProducts = saveProducts.slice();
         }
         this.showListedProducts(sortedProducts);
     }
