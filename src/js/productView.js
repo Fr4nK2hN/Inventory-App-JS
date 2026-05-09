@@ -2,7 +2,6 @@ import Storage from "./storage.js";
 
 export default class ProductView {
     constructor() {
-        // variables
         this.pdtTitle = document.querySelector("#productTitle")
         this.pdtIncQty = document.querySelector("#incQty")
         this.pdtDecQty = document.querySelector("#decQty")
@@ -14,8 +13,11 @@ export default class ProductView {
         this.toggleBtns = document.querySelectorAll(".toggleBtn")
         this.searchInput = document.querySelector("#searchInput")
         this.sortSelect = document.querySelector("#sort")
+        this.viewState = {
+            searchTerm: "",
+            sortType: "newest",
+        }
 
-        // event listeners
         this.pdtAddNew.addEventListener("click", () => {
             this.addNewProduct()
         })
@@ -24,93 +26,163 @@ export default class ProductView {
                 this.toggleProductQty(e)
             })
         })
+        this.searchInput.addEventListener("input", (e) => {
+            this.searchProducts(e.target.value)
+        })
         this.searchInput.addEventListener("keyup", (e) => {
             this.searchProducts(e.target.value)
         })
         this.sortSelect.addEventListener("change", (e) => {
             this.sortBySelect(e.target.value)
         })
+        this.productCenter.addEventListener("click", (e) => {
+            const deleteButton = e.target.closest(".pdt-dlt-btn")
+            if (!deleteButton) {
+                return
+            }
+            this.deleteProduct(deleteButton.id)
+        })
     }
 
     setupApp() {
-        this.showListedProducts(Storage.getProducts)
-        this.sortBySelect(this.sortSelect.value)
+        this.syncViewStateFromControls()
+        this.refreshProductsList()
     }
 
-    // ==================== Member B: 产品校验核心功能 ====================
-    addNewProduct() {
-        const title = this.pdtTitle.value.trim();
-        const quantity = Number(this.pdtQty.innerText);
-        const location = this.pdtLocation.value;
-        const category = this.ctgSelect.value;
+    getAllProducts() {
+        return Storage.getProducts
+    }
 
-        // 完整校验
-        if (title.length < 2) {
-            alert("Title must be at least 2 characters!");
-            return;
+    syncViewStateFromControls() {
+        this.viewState = {
+            searchTerm: this.searchInput.value,
+            sortType: this.sortSelect.value,
         }
-        if (location === "none") {
-            alert("Please select a location!");
-            return;
-        }
-        if (category === "none") {
-            alert("Please select a category!");
-            return;
-        }
-        if (quantity < 0) {
-            alert("Quantity cannot be negative!");
-            return;
-        }
+    }
 
-        // 创建新产品（quantity 作为数字保存）
-        const newProduct = {
+    setViewStateAndRender(nextPartialState) {
+        const nextState = {
+            ...this.viewState,
+            ...nextPartialState,
+        }
+        const hasStateChanged =
+            nextState.searchTerm !== this.viewState.searchTerm
+            || nextState.sortType !== this.viewState.sortType
+        if (!hasStateChanged) {
+            return
+        }
+        this.viewState = nextState
+        this.refreshProductsList()
+    }
+
+    normalizeSearchTerm(searchTerm) {
+        return (searchTerm || "").toLowerCase().trim()
+    }
+
+    normalizeProductTitle(title) {
+        return (title || "").toLowerCase().trim()
+    }
+
+    compareByTitle(a, b) {
+        return this.normalizeProductTitle(a.title).localeCompare(this.normalizeProductTitle(b.title))
+    }
+
+    getSortComparator(sortType) {
+        const comparators = {
+            newest: (a, b) => b.id - a.id,
+            oldest: (a, b) => a.id - b.id,
+            "A-Z": (a, b) => this.compareByTitle(a, b),
+            "Z-A": (a, b) => this.compareByTitle(b, a),
+        }
+        return comparators[sortType] || null
+    }
+
+    matchesSearchTerm(product, normalizedSearchTerm) {
+        return this.normalizeProductTitle(product.title).includes(normalizedSearchTerm)
+    }
+
+    filterProducts(products, searchTerm) {
+        const normalizedSearchTerm = this.normalizeSearchTerm(searchTerm)
+        if (!normalizedSearchTerm) {
+            return products.slice()
+        }
+        return products.filter((product) => this.matchesSearchTerm(product, normalizedSearchTerm))
+    }
+
+    sortProducts(products, sortType) {
+        const comparator = this.getSortComparator(sortType)
+        if (!comparator) {
+            return products.slice()
+        }
+        return products.slice().sort(comparator)
+    }
+
+    deriveVisibleProducts(products, searchTerm, sortType) {
+        const filteredProducts = this.filterProducts(products, searchTerm)
+        return this.sortProducts(filteredProducts, sortType)
+    }
+
+    refreshProductsList() {
+        const allProducts = this.getAllProducts()
+        const finalProducts = this.deriveVisibleProducts(
+            allProducts,
+            this.viewState.searchTerm,
+            this.viewState.sortType
+        )
+        this.showListedProducts(finalProducts)
+    }
+
+    resetProductInputs() {
+        this.pdtTitle.value = " "
+        this.pdtQty.innerText = 0
+        this.pdtLocation.value = "none"
+        this.ctgSelect.value = "none"
+    }
+
+    buildProduct() {
+        return {
             id: Date.now(),
-            title: title,
-            quantity: quantity,                    // ← 改为数字
-            location: location,
-            category: category,
-            persianDate: new Date().toLocaleDateString("fa-IR")
-        };
+            title: this.pdtTitle.value.trim(),
+            quantity: this.pdtQty.innerText,
+            location: this.pdtLocation.value,
+            category: this.ctgSelect.value,
+            persianDate: new Date().toLocaleDateString("fa-IR"),
+        }
+    }
 
-        // 保存到 localStorage
-        const pdtList = Storage.getProducts;
-        pdtList.push(newProduct);
-        Storage.saveProducts(pdtList);
+    saveProduct(product) {
+        const savedProducts = Storage.getProducts
+        savedProducts.push(product)
+        Storage.saveProducts(savedProducts)
+    }
 
-        // 成功反馈 + 重置表单
-        alert("Product added successfully!");
-        this.resetForm();
-
-        // 刷新列表
-        this.sortBySelect(this.sortSelect.value);
-        this.showListedProducts(pdtList);
+    addNewProduct() {
+        if (this.pdtTitle.value.trim().length >= 2) {
+            const newProduct = this.buildProduct()
+            this.resetProductInputs()
+            this.saveProduct(newProduct)
+            this.refreshProductsList()
+            return
+        }
+        alert("your entered title for category must be at least 2 characters!!!")
     }
 
     toggleProductQty(e) {
         switch (e.currentTarget.id) {
             case "incQty":
-                this.pdtQty.innerText = Number(this.pdtQty.innerText) + 1;
+                this.pdtQty.innerText = Number(this.pdtQty.innerText) + 1
                 break;
             case "decQty":
-                let current = Number(this.pdtQty.innerText);
+                let current = Number(this.pdtQty.innerText)
                 if (current > 0) {
-                    this.pdtQty.innerText = current - 1;
+                    this.pdtQty.innerText = current - 1
                 }
                 break;
         }
     }
 
-    resetForm() {
-        this.pdtTitle.value = '';
-        this.pdtQty.innerText = '0';
-        this.pdtLocation.value = "none";
-        this.ctgSelect.value = "none";
-    }
-    // ==================== 原有功能保持不变 ====================
-
     showListedProducts(productList) {
         this.productCenter.replaceChildren(...productList.map((product) => this.createProductListItem(product)))
-        this.productsAction()
     }
 
     createProductListItem(product) {
@@ -161,46 +233,20 @@ export default class ProductView {
         return svg
     }
 
-    productsAction() {
-        const removeBtns = [...document.querySelectorAll(".pdt-dlt-btn")]
-        removeBtns.forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-                this.deleteProduct(e)
-            })
-        })
-    }
-
-    deleteProduct(e) {
-        const productId = Number(e.currentTarget.id)
-        Storage.removeProduct(productId)
-        this.showListedProducts(Storage.getProducts)
-        this.sortBySelect(this.sortSelect.value)
+    deleteProduct(productId) {
+        const numericProductId = Number(productId)
+        if (Number.isNaN(numericProductId)) {
+            return
+        }
+        Storage.removeProduct(numericProductId)
+        this.refreshProductsList()
     }
 
     searchProducts(searchTerm) {
-        const addedProducts = Storage.getProducts
-        const normalizedSearchTerm = searchTerm.toLowerCase().trim();
-        const filteredProducts = addedProducts.filter((product) =>
-            product.title.toLowerCase().trim().includes(normalizedSearchTerm)
-        );
-        this.sortBySelect(this.sortSelect.value)
-        this.showListedProducts(filteredProducts);
+        this.setViewStateAndRender({ searchTerm })
     }
 
     sortBySelect(sortType) {
-        let saveProducts = Storage.getProducts
-        let sortedProducts = [];
-        if (sortType === "newest") {
-            sortedProducts = saveProducts.slice().sort((a, b) => b.id - a.id);
-        } else if (sortType === "oldest") {
-            sortedProducts = saveProducts.slice().sort((a, b) => a.id - a.id);
-        } else if (sortType === "A-Z") {
-            sortedProducts = saveProducts.slice().sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()))
-        } else if (sortType === "Z-A") {
-            sortedProducts = saveProducts.slice().sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase())).reverse()
-        } else {
-            sortedProducts = saveProducts.slice();
-        }
-        this.showListedProducts(sortedProducts);
+        this.setViewStateAndRender({ sortType })
     }
 }

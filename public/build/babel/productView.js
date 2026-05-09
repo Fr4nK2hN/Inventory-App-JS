@@ -34,6 +34,8 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
     this.toggleBtns = document.querySelectorAll(".toggleBtn");
     this.searchInput = document.querySelector("#searchInput");
     this.sortSelect = document.querySelector("#sort");
+    this.searchTerm = "";
+    this.currentSortType = this.sortSelect.value;
     // event listeners
     this.pdtAddNew.addEventListener("click", function () {
       _this.addNewProduct();
@@ -53,8 +55,93 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
   return _createClass(ProductView, [{
     key: "setupApp",
     value: function setupApp() {
-      this.showListedProducts(_storage["default"].getProducts);
-      this.sortBySelect(this.sortSelect.value);
+      this.syncViewStateFromControls();
+      this.refreshProductsList();
+    }
+  }, {
+    key: "getAllProducts",
+    value: function getAllProducts() {
+      return _storage["default"].getProducts;
+    }
+  }, {
+    key: "syncViewStateFromControls",
+    value: function syncViewStateFromControls() {
+      this.searchTerm = this.searchInput.value;
+      this.currentSortType = this.sortSelect.value;
+    }
+  }, {
+    key: "normalizeSearchTerm",
+    value: function normalizeSearchTerm(searchTerm) {
+      return (searchTerm || "").toLowerCase().trim();
+    }
+  }, {
+    key: "normalizeProductTitle",
+    value: function normalizeProductTitle(title) {
+      return (title || "").toLowerCase().trim();
+    }
+  }, {
+    key: "compareByTitle",
+    value: function compareByTitle(a, b) {
+      return this.normalizeProductTitle(a.title).localeCompare(this.normalizeProductTitle(b.title));
+    }
+  }, {
+    key: "getSortComparator",
+    value: function getSortComparator(sortType) {
+      var _this2 = this;
+      var comparators = {
+        newest: function newest(a, b) {
+          return b.id - a.id;
+        },
+        oldest: function oldest(a, b) {
+          return a.id - b.id;
+        },
+        "A-Z": function AZ(a, b) {
+          return _this2.compareByTitle(a, b);
+        },
+        "Z-A": function ZA(a, b) {
+          return _this2.compareByTitle(b, a);
+        }
+      };
+      return comparators[sortType] || null;
+    }
+  }, {
+    key: "matchesSearchTerm",
+    value: function matchesSearchTerm(product, normalizedSearchTerm) {
+      return this.normalizeProductTitle(product.title).includes(normalizedSearchTerm);
+    }
+  }, {
+    key: "filterProducts",
+    value: function filterProducts(products, searchTerm) {
+      var _this3 = this;
+      var normalizedSearchTerm = this.normalizeSearchTerm(searchTerm);
+      if (!normalizedSearchTerm) {
+        return products.slice();
+      }
+      return products.filter(function (product) {
+        return _this3.matchesSearchTerm(product, normalizedSearchTerm);
+      });
+    }
+  }, {
+    key: "sortProducts",
+    value: function sortProducts(products, sortType) {
+      var comparator = this.getSortComparator(sortType);
+      if (!comparator) {
+        return products.slice();
+      }
+      return products.slice().sort(comparator);
+    }
+  }, {
+    key: "deriveVisibleProducts",
+    value: function deriveVisibleProducts(products, searchTerm, sortType) {
+      var filteredProducts = this.filterProducts(products, searchTerm);
+      return this.sortProducts(filteredProducts, sortType);
+    }
+  }, {
+    key: "refreshProductsList",
+    value: function refreshProductsList() {
+      var allProducts = this.getAllProducts();
+      var finalProducts = this.deriveVisibleProducts(allProducts, this.searchTerm, this.currentSortType);
+      this.showListedProducts(finalProducts);
     }
   }, {
     key: "addNewProduct",
@@ -75,12 +162,10 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
         this.ctgSelect.value = "none";
         // save product to local storage
         var pdtList = _storage["default"].getProducts;
-        // console.log(pdtList);
         pdtList.push(newProduct);
         _storage["default"].saveProducts(pdtList);
         // instant update html product list from storage
-        this.sortBySelect(this.sortSelect.value);
-        this.showListedProducts(pdtList);
+        this.refreshProductsList();
       } else {
         alert("your entered title for category must be at least 2 characters!!!");
       }
@@ -89,9 +174,9 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
     key: "showListedProducts",
     value: function showListedProducts(productList) {
       var _this$productCenter,
-        _this2 = this;
+        _this4 = this;
       (_this$productCenter = this.productCenter).replaceChildren.apply(_this$productCenter, _toConsumableArray(productList.map(function (product) {
-        return _this2.createProductListItem(product);
+        return _this4.createProductListItem(product);
       })));
       this.productsAction();
     }
@@ -140,19 +225,18 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
   }, {
     key: "productsAction",
     value: function productsAction() {
-      var _this3 = this;
+      var _this5 = this;
       // delete product event listener
       var removeBtns = _toConsumableArray(document.querySelectorAll(".pdt-dlt-btn"));
       removeBtns.forEach(function (btn) {
         btn.addEventListener("click", function (e) {
-          _this3.deleteProduct(e);
+          _this5.deleteProduct(e);
         });
       });
     }
   }, {
     key: "toggleProductQty",
     value: function toggleProductQty(e) {
-      // console.log(e.currentTarget.id);
       switch (e.currentTarget.id) {
         case "incQty":
           this.pdtQty.innerText++;
@@ -167,45 +251,20 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
     value: function deleteProduct(e) {
       var productId = Number(e.currentTarget.id);
       _storage["default"].removeProduct(productId);
-      this.showListedProducts(_storage["default"].getProducts);
-      this.sortBySelect(this.sortSelect.value);
+      this.syncViewStateFromControls();
+      this.refreshProductsList();
     }
   }, {
     key: "searchProducts",
     value: function searchProducts(searchTerm) {
-      var addedProducts = _storage["default"].getProducts;
-      var normalizedSearchTerm = searchTerm.toLowerCase().trim();
-      var filteredProducts = addedProducts.filter(function (product) {
-        return product.title.toLowerCase().trim().includes(normalizedSearchTerm);
-      });
-      this.sortBySelect(this.sortSelect.value);
-      this.showListedProducts(filteredProducts);
+      this.searchTerm = searchTerm;
+      this.refreshProductsList();
     }
   }, {
     key: "sortBySelect",
     value: function sortBySelect(sortType) {
-      var saveProducts = _storage["default"].getProducts;
-      var sortedProducts = [];
-      if (sortType === "newest") {
-        sortedProducts = saveProducts.slice().sort(function (a, b) {
-          return b.id - a.id;
-        });
-      } else if (sortType === "oldest") {
-        sortedProducts = saveProducts.slice().sort(function (a, b) {
-          return a.id - b.id;
-        });
-      } else if (sortType === "A-Z") {
-        sortedProducts = saveProducts.slice().sort(function (a, b) {
-          return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
-        });
-      } else if (sortType === "Z-A") {
-        sortedProducts = saveProducts.slice().sort(function (a, b) {
-          return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
-        }).reverse();
-      } else {
-        sortedProducts = saveProducts.slice();
-      }
-      this.showListedProducts(sortedProducts);
+      this.currentSortType = sortType;
+      this.refreshProductsList();
     }
   }]);
 }();
