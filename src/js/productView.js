@@ -14,6 +14,8 @@ export default class ProductView {
         this.toggleBtns = document.querySelectorAll(".toggleBtn")
         this.searchInput = document.querySelector("#searchInput")
         this.sortSelect = document.querySelector("#sort")
+        this.searchTerm = ""
+        this.currentSortType = this.sortSelect.value
         // event listeners
         this.pdtAddNew.addEventListener("click", () => {
             this.addNewProduct()
@@ -32,34 +34,100 @@ export default class ProductView {
     }
 
     setupApp() {
-        this.showListedProducts(Storage.getProducts)
-        this.sortBySelect(this.sortSelect.value)
+        this.syncViewStateFromControls()
+        this.refreshProductsList()
+    }
+
+    getAllProducts() {
+        return Storage.getProducts
+    }
+
+    syncViewStateFromControls() {
+        this.searchTerm = this.searchInput.value
+        this.currentSortType = this.sortSelect.value
+    }
+
+    normalizeSearchTerm(searchTerm) {
+        return (searchTerm || "").toLowerCase().trim()
+    }
+
+    normalizeProductTitle(title) {
+        return (title || "").toLowerCase().trim()
+    }
+
+    compareByTitle(a, b) {
+        return this.normalizeProductTitle(a.title).localeCompare(this.normalizeProductTitle(b.title))
+    }
+
+    getSortComparator(sortType) {
+        const comparators = {
+            newest: (a, b) => b.id - a.id,
+            oldest: (a, b) => a.id - b.id,
+            "A-Z": (a, b) => this.compareByTitle(a, b),
+            "Z-A": (a, b) => this.compareByTitle(b, a),
+        }
+        return comparators[sortType] || null
+    }
+
+    matchesSearchTerm(product, normalizedSearchTerm) {
+        return this.normalizeProductTitle(product.title).includes(normalizedSearchTerm)
+    }
+
+    filterProducts(products, searchTerm) {
+        const normalizedSearchTerm = this.normalizeSearchTerm(searchTerm)
+        if (!normalizedSearchTerm) {
+            return products.slice()
+        }
+        return products.filter((product) => this.matchesSearchTerm(product, normalizedSearchTerm))
+    }
+
+    sortProducts(products, sortType) {
+        const comparator = this.getSortComparator(sortType)
+        if (!comparator) {
+            return products.slice()
+        }
+        return products.slice().sort(comparator)
+    }
+
+    deriveVisibleProducts(products, searchTerm, sortType) {
+        const filteredProducts = this.filterProducts(products, searchTerm)
+        return this.sortProducts(filteredProducts, sortType)
+    }
+
+    refreshProductsList() {
+        const allProducts = this.getAllProducts()
+        const finalProducts = this.deriveVisibleProducts(allProducts, this.searchTerm, this.currentSortType)
+        this.showListedProducts(finalProducts)
+    }
+
+    resetProductInputs() {
+        this.pdtTitle.value = " "
+        this.pdtQty.innerText = 0
+        this.pdtLocation.value = "none"
+        this.ctgSelect.value = "none"
+    }
+
+    buildProduct() {
+        return {
+            id: new Date().getTime(),
+            title: this.pdtTitle.value.trim(),
+            quantity: this.pdtQty.innerText,
+            location: this.pdtLocation.value,
+            category: this.ctgSelect.value,
+            persianDate: new Date().toLocaleDateString("fa-IR"),
+        }
     }
 
     addNewProduct() {
         if (this.pdtTitle.value.trim().length >= 2) {
-            // create new object for each category
-            const newProduct = {
-                id: new Date().getTime(),
-                title: this.pdtTitle.value.trim(),
-                quantity: this.pdtQty.innerText,
-                location: this.pdtLocation.value,
-                category: this.ctgSelect.value,
-                persianDate: new Date().toLocaleDateString("fa-IR")
-            }
-            // reset inputs value
-            this.pdtTitle.value = ' '
-            this.pdtQty.innerText = 0,
-                this.pdtLocation.value = "none"
-            this.ctgSelect.value = "none"
+            const newProduct = this.buildProduct()
+            this.resetProductInputs()
             // save product to local storage
-            const pdtList = Storage.getProducts
-            // console.log(pdtList);
-            pdtList.push(newProduct)
-            Storage.saveProducts(pdtList)
+            const savedProducts = Storage.getProducts
+            savedProducts.push(newProduct)
+            Storage.saveProducts(savedProducts)
             // instant update html product list from storage
-            this.sortBySelect(this.sortSelect.value)
-            this.showListedProducts(pdtList)
+            this.refreshProductsList()
 
         } else {
             alert("your entered title for category must be at least 2 characters!!!")
@@ -122,8 +190,8 @@ export default class ProductView {
 
     productsAction() {
         // delete product event listener
-        const removeBtns = [...document.querySelectorAll(".pdt-dlt-btn")]
-        removeBtns.forEach((btn) => {
+        const removeButtons = [...document.querySelectorAll(".pdt-dlt-btn")]
+        removeButtons.forEach((btn) => {
             btn.addEventListener("click", (e) => {
                 this.deleteProduct(e)
             })
@@ -131,7 +199,6 @@ export default class ProductView {
     }
 
     toggleProductQty(e) {
-        // console.log(e.currentTarget.id);
         switch (e.currentTarget.id) {
             case "incQty":
                 this.pdtQty.innerText++;
@@ -145,35 +212,18 @@ export default class ProductView {
     deleteProduct(e) {
         const productId = Number(e.currentTarget.id)
         Storage.removeProduct(productId)
-        this.showListedProducts(Storage.getProducts)
-        this.sortBySelect(this.sortSelect.value)
+        this.syncViewStateFromControls()
+        this.refreshProductsList()
     }
 
     searchProducts(searchTerm) {
-        const addedProducts = Storage.getProducts
-        const normalizedSearchTerm = searchTerm.toLowerCase().trim();
-        const filteredProducts = addedProducts.filter((product) =>
-            product.title.toLowerCase().trim().includes(normalizedSearchTerm)
-        );
-        this.sortBySelect(this.sortSelect.value)
-        this.showListedProducts(filteredProducts);
+        this.searchTerm = searchTerm
+        this.refreshProductsList()
     }
 
     sortBySelect(sortType) {
-        let saveProducts = Storage.getProducts
-        let sortedProducts = [];
-        if (sortType === "newest") {
-            sortedProducts = saveProducts.slice().sort((a, b) => b.id - a.id);
-        } else if (sortType === "oldest") {
-            sortedProducts = saveProducts.slice().sort((a, b) => a.id - b.id);
-        } else if (sortType ==="A-Z" ){
-            sortedProducts = saveProducts.slice().sort((a,b)=> a.title.toLowerCase().localeCompare(b.title.toLowerCase()))
-        } else if (sortType ==="Z-A" ){
-            sortedProducts = saveProducts.slice().sort((a,b)=> a.title.toLowerCase().localeCompare(b.title.toLowerCase())).reverse()
-        } else {
-            sortedProducts = saveProducts.slice();
-        }
-        this.showListedProducts(sortedProducts);
+        this.currentSortType = sortType
+        this.refreshProductsList()
     }
 
 }
