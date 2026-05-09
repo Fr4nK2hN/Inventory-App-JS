@@ -2,7 +2,6 @@ import Storage from "./storage.js";
 
 export default class ProductView {
     constructor() {
-        // variables
         this.pdtTitle = document.querySelector("#productTitle")
         this.pdtIncQty = document.querySelector("#incQty")
         this.pdtDecQty = document.querySelector("#decQty")
@@ -14,8 +13,11 @@ export default class ProductView {
         this.toggleBtns = document.querySelectorAll(".toggleBtn")
         this.searchInput = document.querySelector("#searchInput")
         this.sortSelect = document.querySelector("#sort")
+        this.viewState = {
+            searchTerm: "",
+            sortType: "newest",
+        }
 
-        // event listeners
         this.pdtAddNew.addEventListener("click", () => {
             this.addNewProduct()
         })
@@ -24,11 +26,21 @@ export default class ProductView {
                 this.toggleProductQty(e)
             })
         })
+        this.searchInput.addEventListener("input", (e) => {
+            this.searchProducts(e.target.value)
+        })
         this.searchInput.addEventListener("keyup", (e) => {
             this.searchProducts(e.target.value)
         })
         this.sortSelect.addEventListener("change", (e) => {
             this.sortBySelect(e.target.value)
+        })
+        this.productCenter.addEventListener("click", (e) => {
+            const deleteButton = e.target.closest(".pdt-dlt-btn")
+            if (!deleteButton) {
+                return
+            }
+            this.deleteProduct(deleteButton.id)
         })
     }
 
@@ -42,8 +54,25 @@ export default class ProductView {
     }
 
     syncViewStateFromControls() {
-        this.searchTerm = this.searchInput.value
-        this.currentSortType = this.sortSelect.value
+        this.viewState = {
+            searchTerm: this.searchInput.value,
+            sortType: this.sortSelect.value,
+        }
+    }
+
+    setViewStateAndRender(nextPartialState) {
+        const nextState = {
+            ...this.viewState,
+            ...nextPartialState,
+        }
+        const hasStateChanged =
+            nextState.searchTerm !== this.viewState.searchTerm
+            || nextState.sortType !== this.viewState.sortType
+        if (!hasStateChanged) {
+            return
+        }
+        this.viewState = nextState
+        this.refreshProductsList()
     }
 
     normalizeSearchTerm(searchTerm) {
@@ -95,7 +124,11 @@ export default class ProductView {
 
     refreshProductsList() {
         const allProducts = this.getAllProducts()
-        const finalProducts = this.deriveVisibleProducts(allProducts, this.searchTerm, this.currentSortType)
+        const finalProducts = this.deriveVisibleProducts(
+            allProducts,
+            this.viewState.searchTerm,
+            this.viewState.sortType
+        )
         this.showListedProducts(finalProducts)
     }
 
@@ -108,7 +141,7 @@ export default class ProductView {
 
     buildProduct() {
         return {
-            id: new Date().getTime(),
+            id: Date.now(),
             title: this.pdtTitle.value.trim(),
             quantity: this.pdtQty.innerText,
             location: this.pdtLocation.value,
@@ -117,67 +150,39 @@ export default class ProductView {
         }
     }
 
-    // ==================== Member B: 产品校验核心功能 ====================
+    saveProduct(product) {
+        const savedProducts = Storage.getProducts
+        savedProducts.push(product)
+        Storage.saveProducts(savedProducts)
+    }
+
     addNewProduct() {
         if (this.pdtTitle.value.trim().length >= 2) {
             const newProduct = this.buildProduct()
             this.resetProductInputs()
-            // save product to local storage
-            const savedProducts = Storage.getProducts
-            savedProducts.push(newProduct)
-            Storage.saveProducts(savedProducts)
-            // instant update html product list from storage
+            this.saveProduct(newProduct)
             this.refreshProductsList()
-
-        // 创建新产品（quantity 作为数字保存）
-        const newProduct = {
-            id: Date.now(),
-            title: title,
-            quantity: quantity,                    // ← 改为数字
-            location: location,
-            category: category,
-            persianDate: new Date().toLocaleDateString("fa-IR")
-        };
-
-        // 保存到 localStorage
-        const pdtList = Storage.getProducts;
-        pdtList.push(newProduct);
-        Storage.saveProducts(pdtList);
-
-        // 成功反馈 + 重置表单
-        alert("Product added successfully!");
-        this.resetForm();
-
-        // 刷新列表
-        this.syncViewStateFromControls()
-        this.refreshProductsList()
+            return
+        }
+        alert("your entered title for category must be at least 2 characters!!!")
     }
 
     toggleProductQty(e) {
         switch (e.currentTarget.id) {
             case "incQty":
-                this.pdtQty.innerText = Number(this.pdtQty.innerText) + 1;
+                this.pdtQty.innerText = Number(this.pdtQty.innerText) + 1
                 break;
             case "decQty":
-                let current = Number(this.pdtQty.innerText);
+                let current = Number(this.pdtQty.innerText)
                 if (current > 0) {
-                    this.pdtQty.innerText = current - 1;
+                    this.pdtQty.innerText = current - 1
                 }
                 break;
         }
     }
 
-    resetForm() {
-        this.pdtTitle.value = '';
-        this.pdtQty.innerText = '0';
-        this.pdtLocation.value = "none";
-        this.ctgSelect.value = "none";
-    }
-    // ==================== 原有功能保持不变 ====================
-
     showListedProducts(productList) {
         this.productCenter.replaceChildren(...productList.map((product) => this.createProductListItem(product)))
-        this.productsAction()
     }
 
     createProductListItem(product) {
@@ -228,52 +233,20 @@ export default class ProductView {
         return svg
     }
 
-    productsAction() {
-        const removeBtns = [...document.querySelectorAll(".pdt-dlt-btn")]
-        removeBtns.forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-                this.deleteProduct(e)
-            })
-        })
-    }
-
-    toggleProductQty(e) {
-        switch (e.currentTarget.id) {
-            case "incQty":
-                this.pdtQty.innerText++;
-                break;
-            case "decQty":
-                this.pdtQty.innerText--;
-                break;
+    deleteProduct(productId) {
+        const numericProductId = Number(productId)
+        if (Number.isNaN(numericProductId)) {
+            return
         }
-    }
-
-    deleteProduct(e) {
-        const productId = Number(e.currentTarget.id)
-        Storage.removeProduct(productId)
-        this.syncViewStateFromControls()
+        Storage.removeProduct(numericProductId)
         this.refreshProductsList()
     }
 
     searchProducts(searchTerm) {
-        this.searchTerm = searchTerm
-        this.refreshProductsList()
+        this.setViewStateAndRender({ searchTerm })
     }
 
     sortBySelect(sortType) {
-        let saveProducts = Storage.getProducts
-        let sortedProducts = [];
-        if (sortType === "newest") {
-            sortedProducts = saveProducts.slice().sort((a, b) => b.id - a.id);
-        } else if (sortType === "oldest") {
-            sortedProducts = saveProducts.slice().sort((a, b) => a.id - a.id);
-        } else if (sortType === "A-Z") {
-            sortedProducts = saveProducts.slice().sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()))
-        } else if (sortType === "Z-A") {
-            sortedProducts = saveProducts.slice().sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase())).reverse()
-        } else {
-            sortedProducts = saveProducts.slice();
-        }
-        this.showListedProducts(sortedProducts);
+        this.setViewStateAndRender({ sortType })
     }
 }
