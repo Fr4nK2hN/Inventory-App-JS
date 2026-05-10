@@ -409,10 +409,46 @@ describe("ProductView branch behavior", () => {
         await user.type(screen.getByLabelText("Product title"), "a")
         await user.click(screen.getByRole("button", { name: /add product/i }))
 
-        expect(window.alert).toHaveBeenCalledWith(
-            "your entered title for category must be at least 2 characters!!!"
-        )
+        expect(window.alert).toHaveBeenCalledWith("Title must be at least 2 characters!")
         expect(Storage.getProducts).toHaveLength(0)
+    })
+
+    it("requires a selected product location", async () => {
+        const user = userEvent.setup()
+        new ProductView()
+
+        await user.type(screen.getByLabelText("Product title"), "Valid product")
+        await user.selectOptions(document.querySelector("#categoriesSelect"), "Shoes")
+        await user.click(screen.getByRole("button", { name: /add product/i }))
+
+        expect(window.alert).toHaveBeenCalledWith("Please select a location!")
+        expect(Storage.getProducts).toHaveLength(0)
+    })
+
+    it("requires a selected product category", async () => {
+        const user = userEvent.setup()
+        new ProductView()
+
+        await user.type(screen.getByLabelText("Product title"), "Valid product")
+        await user.selectOptions(document.querySelector("#productLocations"), "BDG")
+        await user.click(screen.getByRole("button", { name: /add product/i }))
+
+        expect(window.alert).toHaveBeenCalledWith("Please select a category!")
+        expect(Storage.getProducts).toHaveLength(0)
+    })
+
+    it("stores product quantity as a number after validation succeeds", async () => {
+        const user = userEvent.setup()
+        new ProductView()
+
+        await user.type(screen.getByLabelText("Product title"), "Valid product")
+        await user.selectOptions(document.querySelector("#productLocations"), "BDG")
+        await user.selectOptions(document.querySelector("#categoriesSelect"), "Shoes")
+        document.querySelector("#productQuantity").innerText = "3"
+        await user.click(screen.getByRole("button", { name: /add product/i }))
+
+        expect(Storage.getProducts).toHaveLength(1)
+        expect(Storage.getProducts[0].quantity).toBe(3)
     })
 
     it("falls back to unsorted storage order when sort type is unknown", () => {
