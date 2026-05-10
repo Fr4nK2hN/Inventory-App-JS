@@ -13,6 +13,9 @@ function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) 
 function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
 function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
 function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
 function _classCallCheck(a, n) { if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function"); }
 function _defineProperties(e, r) { for (var t = 0; t < r.length; t++) { var o = r[t]; o.enumerable = o.enumerable || !1, o.configurable = !0, "value" in o && (o.writable = !0), Object.defineProperty(e, _toPropertyKey(o.key), o); } }
 function _createClass(e, r, t) { return r && _defineProperties(e.prototype, r), t && _defineProperties(e, t), Object.defineProperty(e, "prototype", { writable: !1 }), e; }
@@ -22,7 +25,6 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
   function ProductView() {
     var _this = this;
     _classCallCheck(this, ProductView);
-    // variables
     this.pdtTitle = document.querySelector("#productTitle");
     this.pdtIncQty = document.querySelector("#incQty");
     this.pdtDecQty = document.querySelector("#decQty");
@@ -34,9 +36,10 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
     this.toggleBtns = document.querySelectorAll(".toggleBtn");
     this.searchInput = document.querySelector("#searchInput");
     this.sortSelect = document.querySelector("#sort");
-    this.searchTerm = "";
-    this.currentSortType = this.sortSelect.value;
-    // event listeners
+    this.viewState = {
+      searchTerm: "",
+      sortType: "newest"
+    };
     this.pdtAddNew.addEventListener("click", function () {
       _this.addNewProduct();
     });
@@ -45,11 +48,21 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
         _this.toggleProductQty(e);
       });
     });
+    this.searchInput.addEventListener("input", function (e) {
+      _this.searchProducts(e.target.value);
+    });
     this.searchInput.addEventListener("keyup", function (e) {
       _this.searchProducts(e.target.value);
     });
     this.sortSelect.addEventListener("change", function (e) {
       _this.sortBySelect(e.target.value);
+    });
+    this.productCenter.addEventListener("click", function (e) {
+      var deleteButton = e.target.closest(".pdt-dlt-btn");
+      if (!deleteButton) {
+        return;
+      }
+      _this.deleteProduct(deleteButton.id);
     });
   }
   return _createClass(ProductView, [{
@@ -66,8 +79,21 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
   }, {
     key: "syncViewStateFromControls",
     value: function syncViewStateFromControls() {
-      this.searchTerm = this.searchInput.value;
-      this.currentSortType = this.sortSelect.value;
+      this.viewState = {
+        searchTerm: this.searchInput.value,
+        sortType: this.sortSelect.value
+      };
+    }
+  }, {
+    key: "setViewStateAndRender",
+    value: function setViewStateAndRender(nextPartialState) {
+      var nextState = _objectSpread(_objectSpread({}, this.viewState), nextPartialState);
+      var hasStateChanged = nextState.searchTerm !== this.viewState.searchTerm || nextState.sortType !== this.viewState.sortType;
+      if (!hasStateChanged) {
+        return;
+      }
+      this.viewState = nextState;
+      this.refreshProductsList();
     }
   }, {
     key: "normalizeSearchTerm",
@@ -140,34 +166,98 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
     key: "refreshProductsList",
     value: function refreshProductsList() {
       var allProducts = this.getAllProducts();
-      var finalProducts = this.deriveVisibleProducts(allProducts, this.searchTerm, this.currentSortType);
+      var finalProducts = this.deriveVisibleProducts(allProducts, this.viewState.searchTerm, this.viewState.sortType);
       this.showListedProducts(finalProducts);
+    }
+  }, {
+    key: "resetProductInputs",
+    value: function resetProductInputs() {
+      this.pdtTitle.value = "";
+      this.pdtQty.innerText = "0";
+      this.pdtLocation.value = "none";
+      this.ctgSelect.value = "none";
+    }
+  }, {
+    key: "getProductFormValues",
+    value: function getProductFormValues() {
+      return {
+        title: this.pdtTitle.value.trim(),
+        quantity: Number(this.pdtQty.innerText),
+        location: this.pdtLocation.value,
+        category: this.ctgSelect.value
+      };
+    }
+  }, {
+    key: "validateProductForm",
+    value: function validateProductForm(_ref) {
+      var title = _ref.title,
+        quantity = _ref.quantity,
+        location = _ref.location,
+        category = _ref.category;
+      if (title.length < 2) {
+        return "Title must be at least 2 characters!";
+      }
+      if (location === "none") {
+        return "Please select a location!";
+      }
+      if (category === "none") {
+        return "Please select a category!";
+      }
+      if (!Number.isFinite(quantity) || quantity < 0) {
+        return "Quantity cannot be negative!";
+      }
+      return null;
+    }
+  }, {
+    key: "buildProduct",
+    value: function buildProduct(_ref2) {
+      var title = _ref2.title,
+        quantity = _ref2.quantity,
+        location = _ref2.location,
+        category = _ref2.category;
+      return {
+        id: Date.now(),
+        title: title,
+        quantity: quantity,
+        location: location,
+        category: category,
+        persianDate: new Date().toLocaleDateString("fa-IR")
+      };
+    }
+  }, {
+    key: "saveProduct",
+    value: function saveProduct(product) {
+      var savedProducts = _storage["default"].getProducts;
+      savedProducts.push(product);
+      _storage["default"].saveProducts(savedProducts);
     }
   }, {
     key: "addNewProduct",
     value: function addNewProduct() {
-      if (this.pdtTitle.value.trim().length >= 2) {
-        // create new object for each category
-        var newProduct = {
-          id: new Date().getTime(),
-          title: this.pdtTitle.value.trim(),
-          quantity: this.pdtQty.innerText,
-          location: this.pdtLocation.value,
-          category: this.ctgSelect.value,
-          persianDate: new Date().toLocaleDateString("fa-IR")
-        };
-        // reset inputs value
-        this.pdtTitle.value = ' ';
-        this.pdtQty.innerText = 0, this.pdtLocation.value = "none";
-        this.ctgSelect.value = "none";
-        // save product to local storage
-        var pdtList = _storage["default"].getProducts;
-        pdtList.push(newProduct);
-        _storage["default"].saveProducts(pdtList);
-        // instant update html product list from storage
-        this.refreshProductsList();
-      } else {
-        alert("your entered title for category must be at least 2 characters!!!");
+      var formValues = this.getProductFormValues();
+      var validationMessage = this.validateProductForm(formValues);
+      if (validationMessage) {
+        alert(validationMessage);
+        return;
+      }
+      var newProduct = this.buildProduct(formValues);
+      this.saveProduct(newProduct);
+      this.resetProductInputs();
+      this.refreshProductsList();
+    }
+  }, {
+    key: "toggleProductQty",
+    value: function toggleProductQty(e) {
+      switch (e.currentTarget.id) {
+        case "incQty":
+          this.pdtQty.innerText = Number(this.pdtQty.innerText) + 1;
+          break;
+        case "decQty":
+          var current = Number(this.pdtQty.innerText);
+          if (current > 0) {
+            this.pdtQty.innerText = current - 1;
+          }
+          break;
       }
     }
   }, {
@@ -178,7 +268,6 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
       (_this$productCenter = this.productCenter).replaceChildren.apply(_this$productCenter, _toConsumableArray(productList.map(function (product) {
         return _this4.createProductListItem(product);
       })));
-      this.productsAction();
     }
   }, {
     key: "createProductListItem",
@@ -223,48 +312,28 @@ var ProductView = exports["default"] = /*#__PURE__*/function () {
       return svg;
     }
   }, {
-    key: "productsAction",
-    value: function productsAction() {
-      var _this5 = this;
-      // delete product event listener
-      var removeBtns = _toConsumableArray(document.querySelectorAll(".pdt-dlt-btn"));
-      removeBtns.forEach(function (btn) {
-        btn.addEventListener("click", function (e) {
-          _this5.deleteProduct(e);
-        });
-      });
-    }
-  }, {
-    key: "toggleProductQty",
-    value: function toggleProductQty(e) {
-      switch (e.currentTarget.id) {
-        case "incQty":
-          this.pdtQty.innerText++;
-          break;
-        case "decQty":
-          this.pdtQty.innerText--;
-          break;
-      }
-    }
-  }, {
     key: "deleteProduct",
-    value: function deleteProduct(e) {
-      var productId = Number(e.currentTarget.id);
-      _storage["default"].removeProduct(productId);
-      this.syncViewStateFromControls();
+    value: function deleteProduct(productId) {
+      var numericProductId = Number(productId);
+      if (Number.isNaN(numericProductId)) {
+        return;
+      }
+      _storage["default"].removeProduct(numericProductId);
       this.refreshProductsList();
     }
   }, {
     key: "searchProducts",
     value: function searchProducts(searchTerm) {
-      this.searchTerm = searchTerm;
-      this.refreshProductsList();
+      this.setViewStateAndRender({
+        searchTerm: searchTerm
+      });
     }
   }, {
     key: "sortBySelect",
     value: function sortBySelect(sortType) {
-      this.currentSortType = sortType;
-      this.refreshProductsList();
+      this.setViewStateAndRender({
+        sortType: sortType
+      });
     }
   }]);
 }();

@@ -133,19 +133,44 @@ export default class ProductView {
     }
 
     resetProductInputs() {
-        this.pdtTitle.value = " "
-        this.pdtQty.innerText = 0
+        this.pdtTitle.value = ""
+        this.pdtQty.innerText = "0"
         this.pdtLocation.value = "none"
         this.ctgSelect.value = "none"
     }
 
-    buildProduct() {
+    getProductFormValues() {
         return {
-            id: Date.now(),
             title: this.pdtTitle.value.trim(),
-            quantity: this.pdtQty.innerText,
+            quantity: Number(this.pdtQty.innerText),
             location: this.pdtLocation.value,
             category: this.ctgSelect.value,
+        }
+    }
+
+    validateProductForm({ title, quantity, location, category }) {
+        if (title.length < 2) {
+            return "Title must be at least 2 characters!"
+        }
+        if (location === "none") {
+            return "Please select a location!"
+        }
+        if (category === "none") {
+            return "Please select a category!"
+        }
+        if (!Number.isFinite(quantity) || quantity < 0) {
+            return "Quantity cannot be negative!"
+        }
+        return null
+    }
+
+    buildProduct({ title, quantity, location, category }) {
+        return {
+            id: Date.now(),
+            title,
+            quantity,
+            location,
+            category,
             persianDate: new Date().toLocaleDateString("fa-IR"),
         }
     }
@@ -157,14 +182,18 @@ export default class ProductView {
     }
 
     addNewProduct() {
-        if (this.pdtTitle.value.trim().length >= 2) {
-            const newProduct = this.buildProduct()
-            this.resetProductInputs()
-            this.saveProduct(newProduct)
-            this.refreshProductsList()
+        const formValues = this.getProductFormValues()
+        const validationMessage = this.validateProductForm(formValues)
+
+        if (validationMessage) {
+            alert(validationMessage)
             return
         }
-        alert("your entered title for category must be at least 2 characters!!!")
+
+        const newProduct = this.buildProduct(formValues)
+        this.saveProduct(newProduct)
+        this.resetProductInputs()
+        this.refreshProductsList()
     }
 
     toggleProductQty(e) {

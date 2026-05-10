@@ -19,16 +19,15 @@ var CategoryView = exports["default"] = /*#__PURE__*/function () {
     // variables
     this.ctgTitleInput = document.querySelector("#categoryTitle");
     this.ctgDescInput = document.querySelector("#categoryDescription");
-    this.ctgCacelBtn = document.querySelector("#categoryCanelBtn");
+    this.ctgCancelBtn = document.querySelector("#categoryCanelBtn");
     this.ctgAddBtn = document.querySelector("#categoryAddNewBtn");
     this.ctgSelect = document.querySelector("#categoriesSelect");
     // event listeners
     this.ctgAddBtn.addEventListener("click", function () {
       _this.addNewCategory();
     });
-    this.ctgCacelBtn.addEventListener("click", function () {
-      _this.ctgTitleInput.value = ' ';
-      _this.ctgDescInput.value = ' ';
+    this.ctgCancelBtn.addEventListener("click", function () {
+      _this.resetCategoryInputs();
     });
   }
   return _createClass(CategoryView, [{
@@ -88,11 +87,11 @@ var CategoryView = exports["default"] = /*#__PURE__*/function () {
         var savedCategories = _storage["default"].getCategories();
         // edit => ... save
         // new => ... save
-        var existedItem = this.findCategoryByTitleKey(savedCategories, normalizedTitleKey);
-        if (existedItem) {
+        var existingCategory = this.findCategoryByTitleKey(savedCategories, normalizedTitleKey);
+        if (existingCategory) {
           // edit
-          existedItem.title = normalizedTitle;
-          existedItem.description = categoryDescription;
+          existingCategory.title = normalizedTitle;
+          existingCategory.description = categoryDescription;
           alert("this category name has been added before so we will update the category description!");
         } else {
           // new
@@ -112,7 +111,7 @@ var CategoryView = exports["default"] = /*#__PURE__*/function () {
         return (obj.title || "").trim();
       }).filter(Boolean);
       // create option for each category
-      this.ctgSelect.innerHTML = " <option selected value=\"none\">- select category -</option>  ";
+      this.ctgSelect.innerHTML = " <option selected value=\"none\" data-i18n=\"selectCategory\">- select category -</option> ";
       ctgListTitles.forEach(function (option) {
         var newOption = document.createElement("option");
         newOption.value = option;
@@ -120,6 +119,10 @@ var CategoryView = exports["default"] = /*#__PURE__*/function () {
         // append new created option to select tg
         _this3.ctgSelect.append(newOption);
       });
+      if (typeof window.updateLanguage === 'function') {
+        var currentLang = localStorage.getItem('selectedLanguage') || 'en';
+        window.updateLanguage(currentLang);
+      }
     }
   }]);
 }();
