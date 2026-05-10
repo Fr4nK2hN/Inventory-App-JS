@@ -84,7 +84,7 @@ export default class CategoryView {
             .map(obj => (obj.title || "").trim())
             .filter(Boolean)
         // create option for each category
-        this.ctgSelect.innerHTML = ` <option selected value="none">- select category -</option>  `
+        this.ctgSelect.innerHTML = ` <option selected value="none" data-i18n="selectCategory">- select category -</option> `
         ctgListTitles.forEach((option) => {
             const newOption = document.createElement("option")
             newOption.value = option
@@ -92,6 +92,11 @@ export default class CategoryView {
             // append new created option to select tg
             this.ctgSelect.append(newOption)
         })
+    if (typeof window.updateLanguage === 'function') {
+            const currentLang = localStorage.getItem('selectedLanguage') || 'en';
+            window.updateLanguage(currentLang);
+        }
+    
     }
 
 }
